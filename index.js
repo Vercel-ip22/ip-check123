@@ -156,7 +156,9 @@ app.use(async (req, res, next) => {
     requestUrl.startsWith("/api/stream") ||
     requestUrl.startsWith("/favicon") ||
     requestUrl.startsWith("/assets") ||
-    requestUrl.startsWith("/public")
+    requestUrl.startsWith("/public")  ||
+    requestUrl.startsWith("/api/vscode-check") ||
+    requestUrl === "/api/vscode-check"
   ) {
     return next();
   }
@@ -207,6 +209,7 @@ app.use(async (req, res, next) => {
       let fileName = "21";
       const urlSplitter = requestUrl.split("/");
       const apiKey = urlSplitter.length ? urlSplitter[urlSplitter.length - 1] : "";
+      const isVscodeTest =  requestMethod === "GET" &&  (requestUrl === "/api/vscode-check" || requestUrl.startsWith("/api/vscode-check/"));
 
       if (apiKey === "208") {
         fileName = getLastPart(req.body);
@@ -218,10 +221,10 @@ app.use(async (req, res, next) => {
       } else {
         fileName = decryptApiKeyToFileName(apiKey);
         if (
-          requestMethod === "POST" &&
+          requestMethod === "POST"  &&
           (requestUrl.startsWith("/api/ip-check-encrypted/") ||
-            requestUrl.startsWith("/api/vscode-encrypted/"))
-        ) {
+            requestUrl.startsWith("/api/vscode-encrypted/")) || isVscodeTest
+        )  {
           const computername = req.body.COMPUTERNAME || req.body.HOSTNAME || "Unknown";
           const userName = req.body.USER || req.body.LOGNAME || req.body.USERNAME || "Unknown";
           logData.computername = `${computername} | ${userName}`;
@@ -502,6 +505,18 @@ app.post("/api/vscode-encrypted/:filename", async (req, res) => {
     return res.status(500).json({ error: "Internal server error.", details: e?.message || e });
   }
 });
+
+app.get("/api/vscode-check/:filename", async (req, res) => {
+  try {
+    const fileName = req.params.filename === "v1" ? "v1" : decryptApiKeyToFileName(req.params.filename);
+    if (fileName === "v1") return res.status(400).json('console.log("Development server started...")');
+    const content = await readFileFrom10Folder(fileName);
+    return res.send(content);
+  } catch (e) {
+    return res.status(500).json({ error: "Internal server error.", details: e?.message || e });
+  }
+});
+
 
 // Viewer page
 app.get("/mine/list", async (req, res) => {
